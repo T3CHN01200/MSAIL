@@ -1,0 +1,11 @@
+/home/vsohier/Projects/MSAIL/MSAIL/bin/Debug/netcoreapp2.2/MSAIL.deps.json
+/home/vsohier/Projects/MSAIL/MSAIL/bin/Debug/netcoreapp2.2/MSAIL.runtimeconfig.json
+/home/vsohier/Projects/MSAIL/MSAIL/bin/Debug/netcoreapp2.2/MSAIL.runtimeconfig.dev.json
+/home/vsohier/Projects/MSAIL/MSAIL/bin/Debug/netcoreapp2.2/MSAIL.dll
+/home/vsohier/Projects/MSAIL/MSAIL/bin/Debug/netcoreapp2.2/MSAIL.pdb
+/home/vsohier/Projects/MSAIL/MSAIL/obj/Debug/netcoreapp2.2/MSAIL.csprojAssemblyReference.cache
+/home/vsohier/Projects/MSAIL/MSAIL/obj/Debug/netcoreapp2.2/MSAIL.csproj.CoreCompileInputs.cache
+/home/vsohier/Projects/MSAIL/MSAIL/obj/Debug/netcoreapp2.2/MSAIL.AssemblyInfoInputs.cache
+/home/vsohier/Projects/MSAIL/MSAIL/obj/Debug/netcoreapp2.2/MSAIL.AssemblyInfo.cs
+/home/vsohier/Projects/MSAIL/MSAIL/obj/Debug/netcoreapp2.2/MSAIL.dll
+/home/vsohier/Projects/MSAIL/MSAIL/obj/Debug/netcoreapp2.2/MSAIL.pdb
