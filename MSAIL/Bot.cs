@@ -128,12 +128,12 @@ namespace MSAIL
         private async Task LogNewMessage(SocketMessage m)
         {
 
-            string path = @"" + ((SocketGuildChannel)m.Channel).Guild.Id +
+            string path = @"" + ((SocketGuildChannel) m.Channel).Guild.Id +
                 "/" + m.Channel.Id + ".csv";
 
-            if (!Directory.Exists(@"" + ((SocketGuildChannel)m.Channel).Guild.Id +
+            if (!Directory.Exists(@"" + ((SocketGuildChannel) m.Channel).Guild.Id +
                 "/"))
-                File.Create(@"" + ((SocketGuildChannel)m.Channel).Guild.Id +
+                Directory.CreateDirectory(@"" + ((SocketGuildChannel) m.Channel).Guild.Id +
                 "/");
 
             if (!File.Exists(path))
@@ -153,12 +153,30 @@ namespace MSAIL
 
             embedList.TrimEnd(',');
 
-            using (StreamWriter sw = new StreamWriter(File.Open(path, FileMode.Append)))
-            {
+            bool isSuccessful = false;
 
-                await sw.WriteLineAsync($"{m.Id},{m.Author.Id}," +
-                    $"\"{m.Author.Username.Replace("\"", "\'")}\",\"{m.Content.Replace("\"", "\'")}\",\"{attachmentList}\",\"{embedList}\"," +
-                        $"{m.Timestamp}");
+            while (!isSuccessful)
+            {
+                try
+                {
+
+                    using (StreamWriter sw = new StreamWriter(File.Open(path, FileMode.Append)))
+                    {
+
+
+                        await sw.WriteLineAsync($"{m.Id},{m.Author.Id}," +
+                            $"\"{m.Author.Username.Replace("\"", "\'")}" +
+                            $"\",\"{m.Content.Replace("\"", "\'")}\",\"{attachmentList}\",\"{embedList}\"," +
+                                    $"{m.Timestamp}");
+
+                    }
+                    isSuccessful = true;
+
+                }
+                catch (Exception e)
+                {
+
+                }
 
             }
 
@@ -188,12 +206,28 @@ namespace MSAIL
 
             embedList.TrimEnd(',');
 
-            using (StreamWriter sw = new StreamWriter(File.Open(path, FileMode.Append)))
+            bool isSuccessful = false;
+
+            while(!isSuccessful)
             {
 
-                await sw.WriteLineAsync($"{m.Id},{m.Author.Id}," +
-                    $"\"{m.Author.Username.Replace("\"", "\'")}\",\"{m.Content.Replace("\"", "\'")}\",\"{attachmentList}\",\"{embedList}\"," +
-                        $"{m.EditedTimestamp}");
+                try
+                {
+
+                    using (StreamWriter sw = new StreamWriter(File.Open(path, FileMode.Append)))
+                    {
+
+                        await sw.WriteLineAsync($"{m.Id},{m.Author.Id}," +
+                            $"\"{m.Author.Username.Replace("\"", "\'")}\",\"{m.Content.Replace("\"", "\'")}\",\"{attachmentList}\",\"{embedList}\"," +
+                                $"{m.EditedTimestamp}");
+
+                    }
+
+                    isSuccessful = true;
+
+                }
+                catch(Exception e)
+                { }
 
             }
 
@@ -207,39 +241,7 @@ namespace MSAIL
 
             }
 
-            messages.Sort((s1, s2) => {
-                if (s1 == null)
-                {
-
-                    if (s2 == null)
-                        return 0;
-                    else
-                        return -1;
-
-                }
-                else
-                {
-
-                    if (s2 == null)
-                        return 1;
-                    else
-                    {
-
-                        if (ulong.Parse(s1.Split(",")[0]).
-                            CompareTo(ulong.Parse(s2.Split(",")[0])) == 0)
-                            return DateTimeOffset.Parse(
-                                s1.Split(",")[s1.Split(",").Length - 1]).
-                                CompareTo(DateTimeOffset.Parse(
-                                s2.Split(",")[s2.Split(",").Length - 1]));
-                        else
-                            return ulong.Parse(s1.Split(",")[0]).
-                                CompareTo(ulong.Parse(s2.Split(",")[0]));
-
-                    }
-
-                }
-
-            });
+            messages.Sort(new IMessageComparer());
 
         }
 
@@ -251,40 +253,105 @@ namespace MSAIL
             if (!Directory.Exists(path))
                 Directory.CreateDirectory(path);
 
-            foreach (SocketTextChannel c in g.Channels)
+            List<SocketTextChannel> textChannels = new List<SocketTextChannel>();
+
+            foreach (SocketGuildChannel c in g.Channels)
+                if (c is SocketTextChannel)
+                    //if (!(c.PermissionOverwrites.ToList().Find((obj) =>
+                    //{
+
+                    //    return (obj.TargetType == PermissionTarget.User &&
+                    //        obj.TargetId == _client.CurrentUser.Id);
+
+                    //}).Permissions.ReadMessageHistory == PermValue.Deny ||
+                    //    (c.PermissionOverwrites.ToList().FindAll((obj) =>
+                    //{
+
+                    //    return (obj.TargetType == PermissionTarget.User &&
+                    //        obj.TargetId == _client.CurrentUser.Id);
+
+                    //}).Count == 0)))
+                        textChannels.Add(c as SocketTextChannel);
+
+            foreach (SocketTextChannel c in textChannels)
             {
 
-                if (!File.Exists($"{path}{c.Id}.csv"))
-                    File.Create($"{path}{c.Id}.csv");
+                ulong latestMessageId = 0;
 
-                ulong latestMessageId;
-
-                using (StreamReader sr = new StreamReader(
-                    File.OpenRead($"{path}{c.Id}.csv")))
+                using (FileStream f = File.Open($"{path}{c.Id}.csv",
+                    FileMode.OpenOrCreate, FileAccess.ReadWrite))
                 {
 
-                    string text = await sr.ReadToEndAsync();
+                    StreamReader sr = new StreamReader(f);
+                    StreamWriter sw = new StreamWriter(f);
+
+                    string text = "";
+
+                    while (textChannels == null)
+                    {
+
+                        try
+                        {
+                            text = await sr.ReadToEndAsync();
+                        }
+                        catch (Exception e)
+                        { }
+
+                    }
+
                     if (text.Length > 0)
                         latestMessageId = ulong.Parse(
                             text.Split("\n")[text.Split("\n").Length - 1].Split(",")[0]);
-                    else
-                        latestMessageId = 0;
 
-                }
+                    IReadOnlyCollection<IMessage> messages = null;
 
-                IAsyncEnumerable<IReadOnlyCollection<IMessage>> messages =
-                    c.GetMessagesAsync(int.MaxValue);
-
-                using (StreamWriter sw = new StreamWriter(
-                    File.Open($"{path}{c.Id}.csv", FileMode.Append)))
-                {
-
-                    foreach (IReadOnlyCollection<IMessage> i in messages.ToEnumerable())
+                    try
                     {
-                        List<IMessage> messageList = i.ToList();
-                        messageList.Reverse();
+
+                        messages = await c.GetMessagesAsync(latestMessageId, Direction.After, 1000000).FirstOrDefault();
+
+                    }
+                    catch (Exception e)
+                    {
+
+                    }
+
+                    //while (messages == null)
+                    //{
+
+                    //    try
+                    //    {
+
+                    //        messages = c.GetMessagesAsync(limit: 100);
+
+                    //    }
+                    //    catch (Exception e)
+                    //    {
+
+                    //    }
+
+                    //}
+
+                    if (messages != null)
+                    {
+
+                        List<IMessage> messageList = messages.ToList();
+                        messageList.Sort((IMessage a, IMessage b) =>
+                        {
+
+                            int ans = a.Id.CompareTo(b.Id);
+
+                            if (ans == 0)
+                                ans = a.Timestamp.CompareTo(b.Timestamp);
+
+                            return ans;
+
+                        });
+
                         foreach (IMessage m in messageList)
                         {
+
+                            //Console.WriteLine(m.Content);
 
                             string attachmentList = "";
 
@@ -300,10 +367,35 @@ namespace MSAIL
 
                             embedList.TrimEnd(',');
 
+                            bool isSuccessful = false;
+
                             if (m.Id > latestMessageId)
-                                await sw.WriteLineAsync($"{m.Id},{m.Author.Id}," +
-                                    $"\"{m.Author.Username.Replace("\"", "\'")}\",\"{m.Content.Replace("\"", "\'")}\",\"{attachmentList}\",\"{embedList}\"," +
-                                    $"{m.Timestamp}");
+                                while (!isSuccessful)
+                                {
+
+                                    try
+                                    {
+
+
+                                        await sw.WriteLineAsync($"{m.Id},{m.Author.Id}," +
+                                            $"\"{m.Author.Username.Replace("\"", "\'")}\"," +
+                                                $"\"{m.Content.Replace("\"", "\'")}\"," +
+                                            $"\"{attachmentList}\",\"{embedList}\"," +
+                                                $"{m.Timestamp}");
+
+                                        isSuccessful = true;
+
+
+
+                                    }
+                                    catch (IOException e)
+                                    {
+
+                                        Console.WriteLine(e.Message);
+
+                                    }
+
+                                }
 
                         }
 
@@ -325,10 +417,10 @@ namespace MSAIL
 
     }
 
-    class IMessageComparer : IComparer<IMessage>
+    class IMessageComparer : IComparer<string>
     {
 
-        public int Compare(IMessage a, IMessage b)
+        public int Compare(string a, string b)
         {
 
             if (a == null)
@@ -348,17 +440,15 @@ namespace MSAIL
                 else
                 {
 
-                    int output = a.Id.CompareTo(b.Id);
+                    int output = a.Split(",")[0].CompareTo(b.Split(",")[0]);
 
                     if (output != 0)
                         return output;
                     else
                     {
 
-                        if (!a.EditedTimestamp.HasValue)
-                            return -1;
-                        else
-                            return 1;
+                        return DateTimeOffset.Parse(a.Split(",")[a.Split(",").Length - 1]).CompareTo(
+                        DateTimeOffset.Parse(b.Split(",")[b.Split(",").Length - 1]));
 
                     }
 
