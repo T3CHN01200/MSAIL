@@ -2709,17 +2709,21 @@
     ]
   },
   "packageFolders": {
-    "/home/vsohier/.nuget/packages/": {}
+    "/home/vsohier/.nuget/packages/": {},
+    "/home/vsohier/dotnet/sdk/NuGetFallbackFolder": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "/home/vsohier/Projects/MSAIL/MSAIL/MSAIL.csproj",
+      "projectUniqueName": "/home/vsohier/Projects/T3CHN01200/MSAIL/MSAIL/MSAIL.csproj",
       "projectName": "MSAIL",
-      "projectPath": "/home/vsohier/Projects/MSAIL/MSAIL/MSAIL.csproj",
+      "projectPath": "/home/vsohier/Projects/T3CHN01200/MSAIL/MSAIL/MSAIL.csproj",
       "packagesPath": "/home/vsohier/.nuget/packages/",
-      "outputPath": "/home/vsohier/Projects/MSAIL/MSAIL/obj/",
+      "outputPath": "/home/vsohier/Projects/T3CHN01200/MSAIL/MSAIL/obj/",
       "projectStyle": "PackageReference",
+      "fallbackFolders": [
+        "/home/vsohier/dotnet/sdk/NuGetFallbackFolder"
+      ],
       "configFilePaths": [
         "/home/vsohier/.config/NuGet/NuGet.Config"
       ],

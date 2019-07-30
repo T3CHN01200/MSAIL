@@ -9,6 +9,9 @@
 namespace MSAIL
 {
 
+    /// <summary>
+    /// Container for the program
+    /// </summary>
     class Program
     {
 
@@ -19,6 +22,9 @@ namespace MSAIL
 
         }
 
+        /// <summary>
+        /// Just kickstarts the bot
+        /// </summary>
         public async Task MainAsync()
         {
 

@@ -16,6 +16,9 @@ using Discord.WebSocket;
 namespace MSAIL
 {
 
+    /// <summary>
+    /// Bot container
+    /// </summary>
     public class Bot
     {
 
@@ -23,6 +26,9 @@ namespace MSAIL
         DiscordSocketClient _client;
         IMessageComparer c = new IMessageComparer();
 
+        /// <summary>
+        /// Sets up the bot
+        /// </summary>
         public Bot()
         {
 
@@ -44,13 +50,17 @@ namespace MSAIL
             }
 
             token = (from e in environmentVariables
-                    where e.StartsWith("API_KEY=")
-                    select e).ToList()[0].Split("=")[1];
+                     where e.StartsWith("API_KEY=")
+                     select e).ToList()[0].Split("=")[1];
 
             Constructor().GetAwaiter().GetResult();
 
         }
 
+        /// <summary>
+        /// Because of the asynchronous nature of bots, here is how the bot is
+        /// constructed
+        /// </summary>
         private async Task Constructor()
         {
 
@@ -67,77 +77,125 @@ namespace MSAIL
                     await DownloadMessageHistory(g);
             };
             _client.JoinedGuild += DownloadMessageHistory;
-            _client.MessageReceived += MessageRecieved;
+            _client.MessageReceived += async (m) => {
+
+                await LogNewMessage(m);
+                await Pull(m);
+
+            };
             _client.MessageUpdated += LogMessageUpdate;
 
             await Task.Delay(-1);
 
         }
 
-        private async Task MessageRecieved(SocketMessage m)
-        {
-
-            await LogNewMessage(m);
-            await Pull(m);
-
-        }
-
+        /// <summary>
+        /// processes pull commands
+        /// </summary>
+        /// <param name="m">The command to parse</param>
         private async Task Pull(SocketMessage m)
         {
 
-            SocketGuildChannel c = (SocketGuildChannel)m.Channel;
-            SocketGuild g = c.Guild;
-            string path = @"" + g.Id;
+            if (m.Channel is SocketGuildChannel)
+            {
 
-            if (((SocketGuildUser)m.Author).Roles.ToList().
-                FindAll((obj) => obj.Permissions.Administrator).Count > 0)
-                if (m.Content.ToLower().StartsWith("!pull"))
-                {
+                SocketGuildChannel c = (SocketGuildChannel)m.Channel;
+                SocketGuild g = c.Guild;
+                string path = @"" + g.Id;
 
-                    if (m.MentionedChannels.Count > 0)
+                if (((SocketGuildUser)m.Author).Roles.ToList().
+                    FindAll((obj) => obj.Permissions.Administrator).Count > 0)
+                    if (m.Content.ToLower().StartsWith("!pull"))
                     {
-                        Console.WriteLine(1);
-                        Parallel.ForEach(m.MentionedChannels, (mc) =>
+
+                        if (m.MentionedChannels.Count > 0)
                         {
+                            Console.WriteLine(1);
+                            Parallel.ForEach(m.MentionedChannels, (mc) =>
+                            {
 
-                            m.Author.SendFileAsync($"{path}/{mc.Id}.csv");
+                                m.Author.SendFileAsync($"{path}/{mc.Id}.csv");
 
-                        });
-                    }
-                    else if (m.Content.ToLower().Contains("!pull all"))
-                    {
-                        Console.WriteLine(2);
-                        if (File.Exists($"{g.Id}.zip"))
+                            });
+                        }
+                        else if (m.Content.ToLower().Contains("!pull all"))
+                        {
+                            Console.WriteLine(2);
+                            if (File.Exists($"{g.Id}.zip"))
+                                File.Delete($"{g.Id}.zip");
+
+                            ZipFile.CreateFromDirectory(path, $"{g.Id}.zip");
+                            await m.Author.SendFileAsync($"{g.Id}.zip");
                             File.Delete($"{g.Id}.zip");
 
-                        ZipFile.CreateFromDirectory(path, $"{g.Id}.zip");
-                        await m.Author.SendFileAsync($"{g.Id}.zip");
-                        File.Delete($"{g.Id}.zip");
+                        }
+                        else
+                        {
+                            Console.WriteLine(1);
+                            await m.Author.SendFileAsync($"{path}/{c.Id}.csv");
+                        }
 
                     }
-                    else
-                    {
-                        Console.WriteLine(1);
-                        await m.Author.SendFileAsync($"{path}/{c.Id}.csv");
-                    }
 
-                }
+            }
+            else
+            {
+
+                SocketChannel c = m.Channel as SocketChannel;
+                string path = @"" + "MessageGroups" + "/" + c.Id;
+                if (m.Content.ToLower().StartsWith("!pull"))
+                    await m.Author.SendFileAsync(path);
+
+            }
 
         }
 
+        /// <summary>
+        /// Logs the new message.
+        /// </summary>
+        /// <param name="m">Message to log</param>
         private async Task LogNewMessage(SocketMessage m)
         {
 
-            string path = @"" + ((SocketGuildChannel) m.Channel).Guild.Id +
+            string path = "";
+
+            if (m.Channel is SocketGuildChannel)
+            {
+
+                path = @"" + ((SocketGuildChannel)m.Channel).Guild.Id +
                 "/" + m.Channel.Id + ".csv";
 
-            if (!Directory.Exists(@"" + ((SocketGuildChannel) m.Channel).Guild.Id +
-                "/"))
-                Directory.CreateDirectory(@"" + ((SocketGuildChannel) m.Channel).Guild.Id +
-                "/");
+                if (!Directory.Exists(@"" + ((SocketGuildChannel)m.Channel).Guild.Id +
+                    "/"))
+                    Directory.CreateDirectory(@"" + ((SocketGuildChannel)m.Channel).Guild.Id +
+                    "/");
 
-            if (!File.Exists(path))
-                File.Create(path);
+                if (!File.Exists(path))
+                    File.Create(path);
+
+            }
+            else
+            {
+
+                if (!Directory.Exists("MessageGroups"))
+                    Directory.CreateDirectory("MessageGroups");
+
+                path = @"" + "MessageGroups" +
+                "/" + m.Channel.Id + ".csv";
+
+            }
+
+            await MsgToFile(m, path);
+
+        }
+
+        /// <summary>
+        /// Writes the message to a file
+        /// </summary>
+        /// <param name="m">Message to be written to the file</param>
+        /// <param name="fileName">The file to write the message to</param>
+        private async Task MsgToFile(SocketMessage m, string fileName)
+        {
 
             string attachmentList = "";
 
@@ -160,7 +218,7 @@ namespace MSAIL
                 try
                 {
 
-                    using (StreamWriter sw = new StreamWriter(File.Open(path, FileMode.Append)))
+                    using (StreamWriter sw = new StreamWriter(File.Open(fileName, FileMode.Append)))
                     {
 
 
@@ -182,54 +240,37 @@ namespace MSAIL
 
         }
 
+        /// <summary>
+        /// Logs message edits
+        /// </summary>
+        /// <param name="cacheable">comparer</param>
+        /// <param name="m">The message that was edited</param>
+        /// <param name="c">The channel the edit took place in</param>
         private async Task LogMessageUpdate(Cacheable<IMessage, ulong> cacheable,
             SocketMessage m, ISocketMessageChannel c)
         {
 
-            string path = @"" + ((SocketGuildChannel) m.Channel).Guild.Id + "/" +
+            string path = "";
+
+            if (m.Channel is SocketGuildChannel)
+            {
+
+                path = @"" + ((SocketGuildChannel)m.Channel).Guild.Id + "/" +
                 m.Channel.Id + ".csv";
+
+            }
+            else
+            {
+
+                path = @"" + "MessageGroups" + "/" +
+                m.Channel.Id + ".csv";
+
+            }
 
             if (!File.Exists(path))
                 File.Create(path);
 
-            string attachmentList = "";
-
-            foreach (IAttachment a in m.Attachments)
-                attachmentList += $"{a.Url},";
-
-            attachmentList.TrimEnd(',');
-
-            string embedList = "";
-
-            foreach (IEmbed e in m.Embeds)
-                embedList += $"{e.Url},";
-
-            embedList.TrimEnd(',');
-
-            bool isSuccessful = false;
-
-            while(!isSuccessful)
-            {
-
-                try
-                {
-
-                    using (StreamWriter sw = new StreamWriter(File.Open(path, FileMode.Append)))
-                    {
-
-                        await sw.WriteLineAsync($"{m.Id},{m.Author.Id}," +
-                            $"\"{m.Author.Username.Replace("\"", "\'")}\",\"{m.Content.Replace("\"", "\'")}\",\"{attachmentList}\",\"{embedList}\"," +
-                                $"{m.EditedTimestamp}");
-
-                    }
-
-                    isSuccessful = true;
-
-                }
-                catch(Exception e)
-                { }
-
-            }
+            await MsgToFile(m, path);
 
             List<string> messages = new List<string>();
 
@@ -242,9 +283,25 @@ namespace MSAIL
             }
 
             messages.Sort(new IMessageComparer());
+            File.Create(path);
+
+            using (StreamWriter sw = new StreamWriter(File.OpenWrite(path)))
+            {
+
+                foreach (string msg in messages)
+                    await sw.WriteLineAsync(msg);
+
+                await sw.FlushAsync();
+
+            }
 
         }
 
+        /// <summary>
+        /// Needs to be fixed
+        /// Should grab message history
+        /// </summary>
+        /// <param name="g">The guild to download the message history of</param>
         private async Task DownloadMessageHistory(SocketGuild g)
         {
 
@@ -257,21 +314,7 @@ namespace MSAIL
 
             foreach (SocketGuildChannel c in g.Channels)
                 if (c is SocketTextChannel)
-                    //if (!(c.PermissionOverwrites.ToList().Find((obj) =>
-                    //{
-
-                    //    return (obj.TargetType == PermissionTarget.User &&
-                    //        obj.TargetId == _client.CurrentUser.Id);
-
-                    //}).Permissions.ReadMessageHistory == PermValue.Deny ||
-                    //    (c.PermissionOverwrites.ToList().FindAll((obj) =>
-                    //{
-
-                    //    return (obj.TargetType == PermissionTarget.User &&
-                    //        obj.TargetId == _client.CurrentUser.Id);
-
-                    //}).Count == 0)))
-                        textChannels.Add(c as SocketTextChannel);
+                    textChannels.Add(c as SocketTextChannel);
 
             foreach (SocketTextChannel c in textChannels)
             {
@@ -308,7 +351,8 @@ namespace MSAIL
                     try
                     {
 
-                        messages = await c.GetMessagesAsync(latestMessageId, Direction.After, 1000000).FirstOrDefault();
+                        messages = await c.GetMessagesAsync(latestMessageId,
+                            Direction.After, 1000000).FirstOrDefault();
 
                     }
                     catch (Exception e)
@@ -417,9 +461,18 @@ namespace MSAIL
 
     }
 
+    /// <summary>
+    /// Comparer for messages in files
+    /// </summary>
     class IMessageComparer : IComparer<string>
     {
 
+        /// <summary>
+        /// Compares two strings of a specific format
+        /// </summary>
+        /// <returns>Comparison</returns>
+        /// <param name="a">the first string</param>
+        /// <param name="b">the second string</param>
         public int Compare(string a, string b)
         {
 
